@@ -1,8 +1,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation } from 'lucide-react';
+import { MapPin, Navigation, Plus, Minus } from 'lucide-react';
 import { Spot } from '@/lib/types';
 import Button from './common/Button';
+import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface SpotMapProps {
   spots: Spot[];
@@ -10,7 +12,7 @@ interface SpotMapProps {
   onCreateSpotClick: (location: { latitude: number; longitude: number }) => void;
 }
 
-// Mock user location for demo purposes
+// Mock user location for demo purposes - in a real app, we'd use the device's GPS
 const MOCK_USER_LOCATION = {
   latitude: 34.0522,
   longitude: -118.2437 // Los Angeles coordinates
@@ -22,8 +24,10 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   const [isCreatingSpot, setIsCreatingSpot] = useState(false);
   const [tempMarkerPosition, setTempMarkerPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [hoveredSpot, setHoveredSpot] = useState<string | null>(null);
+  const [mapZoom, setMapZoom] = useState(1);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
   
-  // Mock map initialization - in a real app, you'd use a library like Mapbox or Google Maps
+  // Mock map initialization - in a real app, you'd use a map library
   useEffect(() => {
     if (!mapRef.current) return;
     
@@ -31,6 +35,7 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
     
     // In a real implementation, this would be where we'd initialize the map
     // For now, we'll simulate the map with a styled div and CSS
+    setIsMapLoaded(true);
     
     // Try to get the user's location
     if (navigator.geolocation) {
@@ -44,7 +49,13 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
         },
         (error) => {
           console.error('Error getting location:', error);
-        }
+          toast({
+            title: "Couldn't get your location",
+            description: "Using default location instead. Please enable location services for a better experience.",
+            variant: "destructive"
+          });
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     }
   }, [spots]);
@@ -59,8 +70,8 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
     
     // Convert to "map coordinates" (this is just a simulation)
     // In a real map implementation, you'd convert screen coordinates to geo coordinates
-    const newLat = userLocation.latitude + (y - rect.height/2) / 10000;
-    const newLng = userLocation.longitude + (x - rect.width/2) / 10000;
+    const newLat = userLocation.latitude + (y - rect.height/2) / (10000 / mapZoom);
+    const newLng = userLocation.longitude + (x - rect.width/2) / (10000 / mapZoom);
     
     setTempMarkerPosition({ latitude: newLat, longitude: newLng });
   };
@@ -78,6 +89,25 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
     setTempMarkerPosition(null);
   };
   
+  const zoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMapZoom(prev => Math.min(prev * 1.5, 5));
+  };
+  
+  const zoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMapZoom(prev => Math.max(prev / 1.5, 0.5));
+  };
+  
+  const centerOnUser = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // This would actually center the map in a real implementation
+    toast({
+      title: "Map Centered",
+      description: "Map centered on your current location",
+    });
+  };
+  
   // Get a color for a spot based on its creator
   const getSpotColor = (spot: Spot) => {
     const colors = ['blue', 'teal', 'indigo', 'purple', 'pink', 'orange', 'green', 'rose'];
@@ -86,10 +116,19 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      {!isMapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-spot-blue to-spot-purple mb-4"></div>
+            <p className="text-sm font-medium">Loading map...</p>
+          </div>
+        </div>
+      )}
+      
       <div 
         ref={mapRef}
-        className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container"
+        className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation"
         onClick={handleMapClick}
       >
         {/* Simulated map content */}
@@ -99,7 +138,7 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
             {/* Grid lines to simulate a map */}
             <div className="absolute inset-0" style={{ 
               backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px)',
-              backgroundSize: '50px 50px'
+              backgroundSize: `${50 * mapZoom}px ${50 * mapZoom}px`
             }} />
           </div>
         </div>
@@ -116,13 +155,16 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
           const isHovered = hoveredSpot === spot.id;
           const spotColor = getSpotColor(spot);
           
+          // Calculate distance based on zoom level
+          const zoomFactor = mapZoom;
+          
           return (
             <div 
               key={spot.id}
               className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform"
               style={{ 
-                top: `calc(50% + ${(spot.location.latitude - userLocation.latitude) * 10000}px)`,
-                left: `calc(50% + ${(spot.location.longitude - userLocation.longitude) * 10000}px)`,
+                top: `calc(50% + ${(spot.location.latitude - userLocation.latitude) * 10000 * zoomFactor}px)`,
+                left: `calc(50% + ${(spot.location.longitude - userLocation.longitude) * 10000 * zoomFactor}px)`,
                 zIndex: isHovered ? 20 : 5
               }}
               onMouseEnter={() => setHoveredSpot(spot.id)}
@@ -136,8 +178,8 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
               <div 
                 className={`absolute rounded-full transition-all duration-300 opacity-30 bg-spot-${spotColor}`}
                 style={{
-                  width: `${Math.max(40, spot.radius / 5)}px`,
-                  height: `${Math.max(40, spot.radius / 5)}px`,
+                  width: `${Math.max(40, spot.radius / 5 * zoomFactor)}px`,
+                  height: `${Math.max(40, spot.radius / 5 * zoomFactor)}px`,
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
@@ -147,7 +189,15 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
               />
               
               {/* Spot marker */}
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-spot-${spotColor} to-spot-${spotColor}/70 text-white shadow-spot ${isHovered ? 'scale-110' : ''} transition-transform`}>
+              <div 
+                className={cn(
+                  `w-10 h-10 rounded-full flex items-center justify-center text-white shadow-spot transition-transform`,
+                  isHovered ? 'scale-110' : ''
+                )}
+                style={{
+                  background: `linear-gradient(to right, var(--spot-${spotColor}), var(--spot-${spotColor}ee))`
+                }}
+              >
                 <MapPin size={20} />
               </div>
               
@@ -166,27 +216,37 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
           <div 
             className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
             style={{ 
-              top: `calc(50% + ${(tempMarkerPosition.latitude - userLocation.latitude) * 10000}px)`,
-              left: `calc(50% + ${(tempMarkerPosition.longitude - userLocation.longitude) * 10000}px)`
+              top: `calc(50% + ${(tempMarkerPosition.latitude - userLocation.latitude) * 10000 * mapZoom}px)`,
+              left: `calc(50% + ${(tempMarkerPosition.longitude - userLocation.longitude) * 10000 * mapZoom}px)`
             }}
           >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-spot-blue to-spot-purple text-white shadow-md">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-spot-blue to-spot-purple text-white shadow-md pulse-animation">
               <MapPin size={20} />
             </div>
+            
+            {/* Radius indicator for new spot */}
+            <div 
+              className="absolute rounded-full transition-all duration-300 opacity-30 bg-primary"
+              style={{
+                width: '80px',
+                height: '80px',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                opacity: 0.3,
+              }}
+            />
           </div>
         )}
         
-        {/* Map Controls */}
-        <div className="absolute bottom-24 right-4 flex flex-col space-y-2">
+        {/* Map Controls - Made more mobile-friendly with larger touch targets */}
+        <div className="absolute bottom-24 right-4 flex flex-col space-y-3">
           <Button 
             variant="glass" 
             size="icon"
             aria-label="Center on my location"
-            onClick={(e) => {
-              e.stopPropagation();
-              // This would center the map on the user's location in a real implementation
-              console.log('Centering on user location');
-            }}
+            onClick={centerOnUser}
+            className="w-12 h-12 rounded-full shadow-lg"
           >
             <Navigation size={24} />
           </Button>
@@ -195,32 +255,43 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
             variant="glass" 
             size="icon"
             aria-label="Zoom in"
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log('Zoom in');
-            }}
+            onClick={zoomIn}
+            className="w-12 h-12 rounded-full shadow-lg"
           >
-            <span className="text-xl font-bold">+</span>
+            <Plus size={24} />
           </Button>
           
           <Button 
             variant="glass" 
             size="icon"
             aria-label="Zoom out"
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log('Zoom out');
-            }}
+            onClick={zoomOut}
+            className="w-12 h-12 rounded-full shadow-lg"
           >
-            <span className="text-xl font-bold">-</span>
+            <Minus size={24} />
           </Button>
         </div>
+        
+        {/* Create Spot Button - More noticeable for mobile */}
+        {!isCreatingSpot && (
+          <div className="absolute bottom-24 left-4">
+            <Button
+              variant="primary"
+              size="lg"
+              className="rounded-full shadow-lg"
+              onClick={() => setIsCreatingSpot(true)}
+            >
+              <MapPin className="mr-2" size={18} />
+              Create Spot
+            </Button>
+          </div>
+        )}
       </div>
       
-      {/* Spot creation controls */}
+      {/* Spot creation controls - Improved for mobile */}
       {isCreatingSpot && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 glass-morphism rounded-full px-4 py-2 flex items-center space-x-2 animate-slide-up">
-          <p className="text-sm">
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 glass-morphism rounded-full px-4 py-3 flex items-center space-x-3 animate-slide-up z-20 max-w-[90%] shadow-lg">
+          <p className="text-sm font-medium">
             {tempMarkerPosition ? 'Tap to confirm location' : 'Tap on the map to place your Spot'}
           </p>
           {tempMarkerPosition && (
