@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Users, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { X, Users, Clock, MapPin, ChevronRight, Infinity } from 'lucide-react';
 import { Friend } from '@/lib/types';
 import Avatar from './common/Avatar';
 import Button from './common/Button';
@@ -67,15 +67,22 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
     return false;
   };
   
+  // Calculate the color gradient based on radius
+  const getRadiusColor = () => {
+    // From blue to purple as radius increases
+    const percentage = (radius - 10) / (500 - 10);
+    return `rgba(59, 130, 246, ${1 - percentage}) rgba(139, 92, 246, ${percentage})`;
+  };
+  
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="glass-morphism rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Create a Spot</h2>
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-spot-blue to-spot-purple">
+          <h2 className="text-lg font-semibold text-white">Create a Spot</h2>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-white/80 hover:text-white transition-colors"
           >
             <X size={20} />
           </button>
@@ -84,9 +91,9 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
         {/* Progress indicator */}
         <div className="px-5 pt-2 flex items-center justify-between">
           <div className="flex space-x-1">
-            <div className={`h-1 w-8 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-gray-200'}`} />
-            <div className={`h-1 w-8 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200'}`} />
-            <div className={`h-1 w-8 rounded-full ${step >= 3 ? 'bg-primary' : 'bg-gray-200'}`} />
+            <div className={`h-1 w-8 rounded-full ${step >= 1 ? 'bg-gradient-to-r from-spot-blue to-spot-teal' : 'bg-gray-200'}`} />
+            <div className={`h-1 w-8 rounded-full ${step >= 2 ? 'bg-gradient-to-r from-spot-teal to-spot-indigo' : 'bg-gray-200'}`} />
+            <div className={`h-1 w-8 rounded-full ${step >= 3 ? 'bg-gradient-to-r from-spot-indigo to-spot-purple' : 'bg-gray-200'}`} />
           </div>
           <span className="text-sm text-gray-500">Step {step} of 3</span>
         </div>
@@ -131,11 +138,26 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
                     value={radius}
                     onChange={(e) => setRadius(parseInt(e.target.value))}
                     className="w-full"
+                    style={{
+                      background: `linear-gradient(to right, ${getRadiusColor()})`
+                    }}
                   />
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>10m</span>
-                    <span>{radius}m</span>
+                    <span className="font-medium text-primary">{radius}m</span>
                     <span>500m</span>
+                  </div>
+                  
+                  {/* Radius visualization */}
+                  <div className="relative mt-4 mx-auto w-40 h-40 flex items-center justify-center">
+                    <div 
+                      className="absolute rounded-full bg-primary/10 border border-primary/30"
+                      style={{
+                        width: `${(radius / 500) * 100}%`,
+                        height: `${(radius / 500) * 100}%`,
+                      }}
+                    />
+                    <div className="z-10 w-4 h-4 rounded-full bg-primary" />
                   </div>
                 </div>
               </div>
@@ -172,6 +194,18 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
                     onClick={() => setDuration(168)}
                   >
                     7 days
+                  </button>
+                  <button
+                    type="button"
+                    className={`py-2 rounded-lg border ${
+                      duration === 999999 
+                        ? 'border-primary bg-primary/10 text-primary' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setDuration(999999)}
+                  >
+                    <Infinity size={16} className="mx-auto" />
+                    <span className="text-xs">Forever</span>
                   </button>
                 </div>
               </div>

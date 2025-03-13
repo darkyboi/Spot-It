@@ -69,6 +69,11 @@ export default {
 					indigo: '#6366F1',
 					purple: '#8B5CF6',
 					pink: '#EC4899',
+					orange: '#F97316',
+					yellow: '#FBBF24',
+					green: '#10B981',
+					rose: '#F43F5E',
+					red: '#EF4444',
 				}
 			},
 			borderRadius: {
@@ -123,6 +128,10 @@ export default {
 			boxShadow: {
 				'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
 				'spot': '0 0 20px rgba(59, 130, 246, 0.5)'
+			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
 			}
 		}
 	},

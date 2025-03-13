@@ -8,6 +8,7 @@ export interface User {
 export interface Friend extends User {
   status: 'online' | 'offline';
   lastActive?: Date;
+  isBlocked?: boolean;
 }
 
 export interface Spot {
@@ -24,6 +25,7 @@ export interface Spot {
   expiresAt: Date;
   recipients: string[]; // User IDs
   replies: SpotReply[];
+  isBlocked?: boolean;
 }
 
 export interface SpotReply {
@@ -119,6 +121,44 @@ export const MOCK_SPOTS: Spot[] = [
         userId: 'friend-3',
         message: 'I\'m free next weekend!',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6) // 6 hours ago
+      }
+    ]
+  },
+  {
+    id: 'spot-3',
+    creatorId: 'user-1',
+    message: 'This is where I first learned to skateboard!',
+    location: {
+      latitude: 34.0422,
+      longitude: -118.2337
+    },
+    radius: 75,
+    duration: 168,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 36), // 36 hours ago
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 132), // 5.5 days from now
+    recipients: ['friend-1', 'friend-4'],
+    replies: []
+  },
+  {
+    id: 'spot-4',
+    creatorId: 'user-1',
+    message: 'Amazing concert venue! We should catch a show here sometime.',
+    location: {
+      latitude: 34.0522,
+      longitude: -118.2337
+    },
+    radius: 120,
+    duration: 999999, // indefinite duration
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 999999), // practically never expires
+    recipients: ['friend-2', 'friend-3', 'friend-5'],
+    replies: [
+      {
+        id: 'reply-2',
+        spotId: 'spot-4',
+        userId: 'friend-3',
+        message: 'Yes! I heard they have a great lineup next month!',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
       }
     ]
   }

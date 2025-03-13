@@ -34,6 +34,18 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
+    
+    /* Spot colors with RGB values for JavaScript manipulation */
+    --spot-blue-rgb: 59, 130, 246;
+    --spot-teal-rgb: 20, 184, 166;
+    --spot-indigo-rgb: 99, 102, 241;
+    --spot-purple-rgb: 139, 92, 246;
+    --spot-pink-rgb: 236, 72, 153;
+    --spot-orange-rgb: 249, 115, 22;
+    --spot-yellow-rgb: 251, 191, 36;
+    --spot-green-rgb: 16, 185, 129;
+    --spot-rose-rgb: 244, 63, 94;
+    --spot-red-rgb: 239, 68, 68;
   }
 
   .dark {
@@ -191,3 +203,43 @@ html, body, #root {
     opacity: 0;
   }
 }
+
+/* Gradient text utility */
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+}
+
+/* Color utilities for spots */
+.bg-spot-blue { background-color: #3B82F6; }
+.bg-spot-teal { background-color: #14B8A6; }
+.bg-spot-indigo { background-color: #6366F1; }
+.bg-spot-purple { background-color: #8B5CF6; }
+.bg-spot-pink { background-color: #EC4899; }
+.bg-spot-orange { background-color: #F97316; }
+.bg-spot-yellow { background-color: #FBBF24; }
+.bg-spot-green { background-color: #10B981; }
+.bg-spot-rose { background-color: #F43F5E; }
+.bg-spot-red { background-color: #EF4444; }
+
+/* Gradient backgrounds for different spot types */
+.from-spot-blue { --tw-gradient-from: #3B82F6; }
+.from-spot-teal { --tw-gradient-from: #14B8A6; }
+.from-spot-indigo { --tw-gradient-from: #6366F1; }
+.from-spot-purple { --tw-gradient-from: #8B5CF6; }
+.from-spot-pink { --tw-gradient-from: #EC4899; }
+.from-spot-orange { --tw-gradient-from: #F97316; }
+.from-spot-yellow { --tw-gradient-from: #FBBF24; }
+.from-spot-green { --tw-gradient-from: #10B981; }
+.from-spot-rose { --tw-gradient-from: #F43F5E; }
+.from-spot-red { --tw-gradient-from: #EF4444; }
+
+.to-spot-blue { --tw-gradient-to: #3B82F6; }
+.to-spot-teal { --tw-gradient-to: #14B8A6; }
+.to-spot-indigo { --tw-gradient-to: #6366F1; }
+.to-spot-purple { --tw-gradient-to: #8B5CF6; }
+.to-spot-pink { --tw-gradient-to: #EC4899; }
+.to-spot-orange { --tw-gradient-to: #F97316; }
+.to-spot-yellow { --tw-gradient-to: #FBBF24; }
+.to-spot-green { --tw-gradient-to: #10B981; }
+.to-spot-rose { --tw-gradient-to: #F43F5E; }
+.to-spot-red { --tw-gradient-to: #EF4444; }

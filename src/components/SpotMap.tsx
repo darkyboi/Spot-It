@@ -21,6 +21,7 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   const [userLocation, setUserLocation] = useState(MOCK_USER_LOCATION);
   const [isCreatingSpot, setIsCreatingSpot] = useState(false);
   const [tempMarkerPosition, setTempMarkerPosition] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [hoveredSpot, setHoveredSpot] = useState<string | null>(null);
   
   // Mock map initialization - in a real app, you'd use a library like Mapbox or Google Maps
   useEffect(() => {
@@ -76,18 +77,25 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
     setIsCreatingSpot(false);
     setTempMarkerPosition(null);
   };
+  
+  // Get a color for a spot based on its creator
+  const getSpotColor = (spot: Spot) => {
+    const colors = ['blue', 'teal', 'indigo', 'purple', 'pink', 'orange', 'green', 'rose'];
+    const creatorNumber = parseInt(spot.creatorId.split('-')[1], 10) || 0;
+    return colors[creatorNumber % colors.length];
+  };
 
   return (
     <div className="h-full flex flex-col">
       <div 
         ref={mapRef}
-        className="relative flex-1 bg-[#f2f5fa] map-container"
+        className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container"
         onClick={handleMapClick}
       >
         {/* Simulated map content */}
         <div className="absolute inset-0">
           {/* This would be a real map in production */}
-          <div className="w-full h-full bg-gradient-to-b from-blue-50 to-blue-100">
+          <div className="w-full h-full">
             {/* Grid lines to simulate a map */}
             <div className="absolute inset-0" style={{ 
               backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px)',
@@ -97,31 +105,61 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
         </div>
         
         {/* User location marker */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-6 h-6 rounded-full bg-primary shadow-lg flex items-center justify-center spot-pulse">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-spot-blue to-spot-indigo shadow-lg flex items-center justify-center spot-pulse">
             <div className="w-3 h-3 rounded-full bg-white" />
           </div>
         </div>
         
-        {/* Spot markers */}
-        {spots.map(spot => (
-          <div 
-            key={spot.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:scale-110"
-            style={{ 
-              top: `calc(50% + ${(spot.location.latitude - userLocation.latitude) * 10000}px)`,
-              left: `calc(50% + ${(spot.location.longitude - userLocation.longitude) * 10000}px)`
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSpotClick(spot);
-            }}
-          >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-spot-blue text-white shadow-spot animate-pulse-spot`}>
-              <MapPin size={20} />
+        {/* Spot markers with radius circles */}
+        {spots.map(spot => {
+          const isHovered = hoveredSpot === spot.id;
+          const spotColor = getSpotColor(spot);
+          
+          return (
+            <div 
+              key={spot.id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform"
+              style={{ 
+                top: `calc(50% + ${(spot.location.latitude - userLocation.latitude) * 10000}px)`,
+                left: `calc(50% + ${(spot.location.longitude - userLocation.longitude) * 10000}px)`,
+                zIndex: isHovered ? 20 : 5
+              }}
+              onMouseEnter={() => setHoveredSpot(spot.id)}
+              onMouseLeave={() => setHoveredSpot(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSpotClick(spot);
+              }}
+            >
+              {/* Radius circle */}
+              <div 
+                className={`absolute rounded-full transition-all duration-300 opacity-30 bg-spot-${spotColor}`}
+                style={{
+                  width: `${Math.max(40, spot.radius / 5)}px`,
+                  height: `${Math.max(40, spot.radius / 5)}px`,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  opacity: isHovered ? 0.4 : 0.2,
+                  boxShadow: isHovered ? `0 0 20px rgba(var(--spot-${spotColor}-rgb), 0.5)` : 'none'
+                }}
+              />
+              
+              {/* Spot marker */}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-spot-${spotColor} to-spot-${spotColor}/70 text-white shadow-spot ${isHovered ? 'scale-110' : ''} transition-transform`}>
+                <MapPin size={20} />
+              </div>
+              
+              {/* Radius label (only show when hovered) */}
+              {isHovered && (
+                <div className="absolute top-12 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full text-xs font-medium shadow-sm">
+                  {spot.radius}m radius
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         {/* Temporary marker for spot creation */}
         {tempMarkerPosition && (
@@ -132,14 +170,14 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
               left: `calc(50% + ${(tempMarkerPosition.longitude - userLocation.longitude) * 10000}px)`
             }}
           >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white shadow-md">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-spot-blue to-spot-purple text-white shadow-md">
               <MapPin size={20} />
             </div>
           </div>
         )}
         
         {/* Map Controls */}
-        <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
+        <div className="absolute bottom-24 right-4 flex flex-col space-y-2">
           <Button 
             variant="glass" 
             size="icon"
@@ -203,20 +241,6 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
               </Button>
             </>
           )}
-        </div>
-      )}
-      
-      {/* Create Spot button (only shown when not actively creating) */}
-      {!isCreatingSpot && (
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
-          <Button
-            variant="primary"
-            size="lg"
-            className="shadow-lg"
-            onClick={() => setIsCreatingSpot(true)}
-          >
-            Create a Spot
-          </Button>
         </div>
       )}
     </div>
