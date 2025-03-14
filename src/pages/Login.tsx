@@ -1,0 +1,191 @@
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Lock, LogIn, User, ArrowRight } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import Button from '@/components/common/Button';
+
+const Login = () => {
+  const navigate = useNavigate();
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      // In a real app with Supabase, we would use:
+      // if (isLogin) {
+      //   await supabase.auth.signInWithPassword({ email, password });
+      // } else {
+      //   await supabase.auth.signUp({ email, password, options: { data: { username } } });
+      // }
+
+      // For now, let's simulate auth
+      setTimeout(() => {
+        // Store basic user info in localStorage
+        localStorage.setItem('spotItAccount', JSON.stringify({
+          email,
+          username: username || email.split('@')[0],
+          id: 'user-1'
+        }));
+
+        toast({
+          title: isLogin ? "Welcome back!" : "Account created!",
+          description: isLogin 
+            ? "You've successfully logged in to Spot It" 
+            : "Your Spot It account has been created",
+        });
+
+        navigate('/');
+        setIsLoading(false);
+      }, 1000);
+    } catch (error) {
+      setIsLoading(false);
+      toast({
+        title: "Authentication error",
+        description: "Please check your credentials and try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo and brand */}
+        <div className="text-center mb-8">
+          <div className="bg-gradient-to-r from-spot-blue to-spot-purple rounded-full w-16 h-16 flex items-center justify-center text-white font-bold text-xl mx-auto">
+            S
+          </div>
+          <h1 className="text-2xl font-bold mt-4 bg-gradient-to-r from-spot-blue to-spot-purple bg-clip-text text-transparent">
+            Spot It
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Leave messages in the real world
+          </p>
+        </div>
+
+        {/* Auth form */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200">
+            <button
+              className={`flex-1 py-3 font-medium text-sm ${
+                isLogin
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setIsLogin(true)}
+            >
+              Log In
+            </button>
+            <button
+              className={`flex-1 py-3 font-medium text-sm ${
+                !isLogin
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setIsLogin(false)}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {!isLogin && (
+              <div className="space-y-1">
+                <label htmlFor="username" className="text-sm font-medium text-gray-700">
+                  Username
+                </label>
+                <div className="relative">
+                  <User size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required={!isLogin}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    placeholder="Enter your username"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                {isLogin && (
+                  <a href="#" className="text-sm text-primary hover:text-primary/80">
+                    Forgot password?
+                  </a>
+                )}
+              </div>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full py-3"
+              leftIcon={isLogin ? <LogIn size={18} /> : <ArrowRight size={18} />}
+              isLoading={isLoading}
+              disabled={isLoading}
+            >
+              {isLogin ? 'Log In' : 'Create Account'}
+            </Button>
+          </form>
+
+          <div className="p-6 pt-0 text-center text-sm text-gray-500">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-primary hover:text-primary/80 font-medium"
+            >
+              {isLogin ? 'Sign Up' : 'Log In'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;

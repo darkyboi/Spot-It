@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Users, Plus, Search, UserPlus, X, Mail, User, Check } from 'lucide-react';
+import { Users, Plus, Search, UserPlus, X, Mail, User, Check, Shield, AlertTriangle } from 'lucide-react';
 import { Friend } from '@/lib/types';
 import Avatar from './common/Avatar';
 import Button from './common/Button';
@@ -17,6 +17,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
   const [addMethod, setAddMethod] = useState<'email' | 'username' | null>(null);
   const [inviteValue, setInviteValue] = useState('');
   const [selectedTab, setSelectedTab] = useState<'all' | 'requests'>('all');
+  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   
   // Mock friend requests data
   const [friendRequests] = useState([
@@ -55,6 +56,25 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
       title: "Friend Request Declined",
       description: "The request has been removed",
     });
+  };
+  
+  const handleBlockFriend = (friendId: string) => {
+    // In a real app this would block the friend
+    toast({
+      title: "User Blocked",
+      description: "You won't receive Spots from this user anymore",
+      variant: "destructive",
+    });
+    setSelectedFriend(null);
+  };
+  
+  const handleReportFriend = (friendId: string) => {
+    // In a real app this would report the friend
+    toast({
+      title: "Report Submitted",
+      description: "Thank you for helping keep our community safe",
+    });
+    setSelectedFriend(null);
   };
   
   // Format last active time
@@ -240,13 +260,49 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
                       
                       <button 
                         className="text-primary hover:text-primary/80 transition-colors"
-                        onClick={() => console.log('View profile of', friend.name)}
+                        onClick={() => setSelectedFriend(friend.id)}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                           <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
                         </svg>
                       </button>
                     </div>
+                    
+                    {/* Friend Actions - Shown when selected */}
+                    {selectedFriend === friend.id && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">Actions</h4>
+                        <div className="space-y-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<Shield size={14} />}
+                            onClick={() => handleBlockFriend(friend.id)}
+                            className="w-full justify-start text-sm text-gray-700 hover:text-destructive"
+                          >
+                            Block User
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<AlertTriangle size={14} />}
+                            onClick={() => handleReportFriend(friend.id)}
+                            className="w-full justify-start text-sm text-gray-700"
+                          >
+                            Report Abuse
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<X size={14} />}
+                            onClick={() => setSelectedFriend(null)}
+                            className="w-full justify-start text-sm text-gray-500"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -27,15 +27,50 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   const [mapZoom, setMapZoom] = useState(1);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
+  // Simulated map grid for visual purposes
+  const [grid, setGrid] = useState<JSX.Element[]>([]);
+  
+  // Create simulated map grid
+  useEffect(() => {
+    const gridSize = 20;
+    const gridCells = [];
+    
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const isEven = (i + j) % 2 === 0;
+        gridCells.push(
+          <div 
+            key={`${i}-${j}`}
+            className={`absolute ${isEven ? 'bg-blue-50/30' : 'bg-purple-50/20'}`}
+            style={{
+              top: `${(i / gridSize) * 100}%`,
+              left: `${(j / gridSize) * 100}%`,
+              width: `${100 / gridSize}%`,
+              height: `${100 / gridSize}%`,
+              transition: 'all 0.3s ease',
+              transform: `scale(${mapZoom})`,
+              opacity: mapZoom > 2 ? 0.7 : 1
+            }}
+          />
+        );
+      }
+    }
+    
+    setGrid(gridCells);
+    
+    // After grid is loaded, set map as loaded
+    const timer = setTimeout(() => {
+      setIsMapLoaded(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [mapZoom]);
+  
   // Mock map initialization - in a real app, you'd use a map library
   useEffect(() => {
     if (!mapRef.current) return;
     
     console.log('Map initialized with spots:', spots);
-    
-    // In a real implementation, this would be where we'd initialize the map
-    // For now, we'll simulate the map with a styled div and CSS
-    setIsMapLoaded(true);
     
     // Try to get the user's location
     if (navigator.geolocation) {
@@ -131,15 +166,21 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
         className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation"
         onClick={handleMapClick}
       >
-        {/* Simulated map content */}
-        <div className="absolute inset-0">
-          {/* This would be a real map in production */}
-          <div className="w-full h-full">
-            {/* Grid lines to simulate a map */}
-            <div className="absolute inset-0" style={{ 
-              backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px)',
-              backgroundSize: `${50 * mapZoom}px ${50 * mapZoom}px`
-            }} />
+        {/* Simulated map content - will be replaced with a real map implementation */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Grid background for visual effect */}
+          <div className="absolute inset-0 opacity-70">
+            {grid}
+          </div>
+          
+          {/* Simulated roads for visual effect */}
+          <div className="absolute inset-0">
+            <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/40 transform -translate-y-1/2"></div>
+            <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-white/40 transform -translate-x-1/2"></div>
+            <div className="absolute top-1/4 left-0 right-0 h-0.5 bg-white/20 transform -translate-y-1/2"></div>
+            <div className="absolute top-3/4 left-0 right-0 h-0.5 bg-white/20 transform -translate-y-1/2"></div>
+            <div className="absolute top-0 bottom-0 left-1/4 w-0.5 bg-white/20 transform -translate-x-1/2"></div>
+            <div className="absolute top-0 bottom-0 left-3/4 w-0.5 bg-white/20 transform -translate-x-1/2"></div>
           </div>
         </div>
         
@@ -176,7 +217,7 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
             >
               {/* Radius circle */}
               <div 
-                className={`absolute rounded-full transition-all duration-300 opacity-30 bg-spot-${spotColor}`}
+                className={`absolute rounded-full transition-all duration-300 opacity-30`}
                 style={{
                   width: `${Math.max(40, spot.radius / 5 * zoomFactor)}px`,
                   height: `${Math.max(40, spot.radius / 5 * zoomFactor)}px`,
@@ -184,7 +225,15 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   opacity: isHovered ? 0.4 : 0.2,
-                  boxShadow: isHovered ? `0 0 20px rgba(var(--spot-${spotColor}-rgb), 0.5)` : 'none'
+                  background: spotColor === 'blue' ? 'var(--spot-blue)' : 
+                             spotColor === 'teal' ? 'var(--spot-teal)' :
+                             spotColor === 'indigo' ? 'var(--spot-indigo)' :
+                             spotColor === 'purple' ? 'var(--spot-purple)' :
+                             spotColor === 'pink' ? 'var(--spot-pink)' :
+                             spotColor === 'orange' ? 'var(--spot-orange)' :
+                             spotColor === 'green' ? 'var(--spot-green)' :
+                             'var(--spot-rose)',
+                  boxShadow: isHovered ? `0 0 20px ${spotColor === 'blue' ? 'rgba(var(--spot-blue-rgb), 0.5)' : 'rgba(147, 51, 234, 0.5)'}` : 'none'
                 }}
               />
               
@@ -195,7 +244,14 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
                   isHovered ? 'scale-110' : ''
                 )}
                 style={{
-                  background: `linear-gradient(to right, var(--spot-${spotColor}), var(--spot-${spotColor}ee))`
+                  background: spotColor === 'blue' ? 'linear-gradient(to right, var(--spot-blue), #2563eb)' : 
+                             spotColor === 'teal' ? 'linear-gradient(to right, var(--spot-teal), #0d9488)' :
+                             spotColor === 'indigo' ? 'linear-gradient(to right, var(--spot-indigo), #4f46e5)' :
+                             spotColor === 'purple' ? 'linear-gradient(to right, var(--spot-purple), #7c3aed)' :
+                             spotColor === 'pink' ? 'linear-gradient(to right, var(--spot-pink), #db2777)' :
+                             spotColor === 'orange' ? 'linear-gradient(to right, var(--spot-orange), #ea580c)' :
+                             spotColor === 'green' ? 'linear-gradient(to right, var(--spot-green), #16a34a)' :
+                             'linear-gradient(to right, var(--spot-rose), #e11d48)'
                 }}
               >
                 <MapPin size={20} />

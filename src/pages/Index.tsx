@@ -11,7 +11,6 @@ import { toast } from '@/hooks/use-toast';
 import BottomMenu from '@/components/BottomMenu';
 import PastSpots from '@/components/PastSpots';
 import MySpots from '@/components/MySpots';
-import SpotNotificationActions from '@/components/SpotNotificationActions';
 
 const Index = () => {
   const [spots, setSpots] = useState<Spot[]>(MOCK_SPOTS);
@@ -161,31 +160,6 @@ const Index = () => {
     });
   };
   
-  const handleBlockSpot = () => {
-    if (!activeSpot) return;
-    
-    // Add spot to blocked list
-    setBlockedSpots([...blockedSpots, activeSpot.id]);
-    
-    // Close the active spot
-    setActiveSpot(null);
-    
-    toast({
-      title: "Spot Blocked",
-      description: "You won't see this Spot again.",
-      variant: "destructive",
-    });
-  };
-  
-  const handleReportAbuse = () => {
-    toast({
-      title: "Report Submitted",
-      description: "Thank you for helping keep our community safe.",
-    });
-    
-    setActiveSpot(null);
-  };
-  
   const handleTabChange = (tab: string) => {
     if (tab === 'create') {
       // When the create tab is clicked, simulate a map click at the center
@@ -285,19 +259,11 @@ const Index = () => {
       )}
       
       {activeSpot && (
-        <>
-          <SpotNotification
-            spot={activeSpot}
-            onClose={() => setActiveSpot(null)}
-            onReply={handleReplyToSpot}
-          />
-          <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-50">
-            <SpotNotificationActions
-              onBlock={handleBlockSpot}
-              onReportAbuse={handleReportAbuse}
-            />
-          </div>
-        </>
+        <SpotNotification
+          spot={activeSpot}
+          onClose={() => setActiveSpot(null)}
+          onReply={handleReplyToSpot}
+        />
       )}
       
       <FriendsPanel 
