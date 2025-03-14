@@ -32,29 +32,40 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   
   // Create simulated map grid
   useEffect(() => {
-    const gridSize = 20;
-    const gridCells = [];
-    
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        const isEven = (i + j) % 2 === 0;
-        gridCells.push(
-          <div 
-            key={`${i}-${j}`}
-            className={`absolute ${isEven ? 'bg-blue-50/30' : 'bg-purple-50/20'}`}
-            style={{
-              top: `${(i / gridSize) * 100}%`,
-              left: `${(j / gridSize) * 100}%`,
-              width: `${100 / gridSize}%`,
-              height: `${100 / gridSize}%`,
-              transition: 'all 0.3s ease',
-              transform: `scale(${mapZoom})`,
-              opacity: mapZoom > 2 ? 0.7 : 1
-            }}
-          />
-        );
-      }
+    if (!mapRef.current) return;
+  
+    console.log('Initializing map with spots:', spots);
+  
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+          console.log('User location retrieved:', position.coords);
+        },
+        (error) => {
+          console.error('Geolocation error:', error.message);
+  
+          toast({
+            title: "Couldn't retrieve location",
+            description: `Error: ${error.message}. Using default location.`,
+            variant: "destructive"
+          });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      console.warn("Geolocation API not supported");
+      toast({
+        title: "Geolocation Not Supported",
+        description: "Your browser does not support location services.",
+        variant: "destructive"
+      });
     }
+  }, [spots]);
+  
     
     setGrid(gridCells);
     
@@ -136,12 +147,16 @@ const SpotMap: React.FC<SpotMapProps> = ({ spots, onSpotClick, onCreateSpotClick
   
   const centerOnUser = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // This would actually center the map in a real implementation
-    toast({
-      title: "Map Centered",
-      description: "Map centered on your current location",
-    });
+    if (userLocation) {
+      console.log("Centering map on user location:", userLocation);
+      setMapZoom(2); // Adjust zoom level if necessary
+      toast({
+        title: "Map Centered",
+        description: `Latitude: ${userLocation.latitude}, Longitude: ${userLocation.longitude}`,
+      });
+    }
   };
+  
   
   // Get a color for a spot based on its creator
   const getSpotColor = (spot: Spot) => {
