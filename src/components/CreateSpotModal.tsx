@@ -1,10 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, MapPin, ChevronRight, Infinity } from 'lucide-react';
 import { Friend } from '@/lib/types';
 import Avatar from './common/Avatar';
 import Button from './common/Button';
 import { MOCK_FRIENDS } from '@/lib/types';
+import { saveSpot, getFriends } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 
 interface CreateSpotModalProps {
   location: { latitude: number; longitude: number };
@@ -27,14 +28,74 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   const [radius, setRadius] = useState(100); // Default 100m
   const [duration, setDuration] = useState(24); // Default 24 hours
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSubmit = () => {
-    onCreateSpot({
-      message,
-      radius,
-      duration,
-      recipients: selectedFriends,
-    });
+  useEffect(() => {
+    const loadFriends = async () => {
+      try {
+        const { data, error } = await getFriends();
+        if (error) {
+          console.error("Error loading friends:", error);
+          setFriends(MOCK_FRIENDS);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          setFriends(data);
+        } else {
+          setFriends(MOCK_FRIENDS);
+        }
+      } catch (err) {
+        console.error("Failed to load friends:", err);
+        setFriends(MOCK_FRIENDS);
+      }
+    };
+    
+    loadFriends();
+  }, []);
+  
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    
+    try {
+      const spotData = {
+        message,
+        location,
+        radius,
+        duration,
+        recipients: selectedFriends,
+      };
+      
+      const { data, error } = await saveSpot(spotData);
+      
+      if (error) {
+        console.error("Error saving spot:", error);
+        toast({
+          title: "Failed to create Spot",
+          description: error.message || "There was an error creating your Spot.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      onCreateSpot(spotData);
+      
+      toast({
+        title: "Spot Created",
+        description: "Your Spot has been successfully created and shared.",
+      });
+    } catch (err) {
+      console.error("Failed to create spot:", err);
+      toast({
+        title: "Failed to create Spot",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleFriendToggle = (friendId: string) => {
@@ -64,12 +125,10 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   const isNextDisabled = () => {
     if (step === 1) return message.trim().length === 0;
     if (step === 3) return selectedFriends.length === 0;
-    return false;
+    return false || isLoading;
   };
   
-  // Calculate the color gradient based on radius
   const getRadiusColor = () => {
-    // From blue to purple as radius increases
     const percentage = (radius - 10) / (500 - 10);
     return `rgba(59, 130, 246, ${1 - percentage}) rgba(139, 92, 246, ${percentage})`;
   };
@@ -77,7 +136,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="glass-morphism rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in">
-        {/* Header */}
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-spot-blue to-spot-purple">
           <h2 className="text-lg font-semibold text-white">Create a Spot</h2>
           <button 
@@ -88,7 +146,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
           </button>
         </div>
         
-        {/* Progress indicator */}
         <div className="px-5 pt-2 flex items-center justify-between">
           <div className="flex space-x-1">
             <div className={`h-1 w-8 rounded-full ${step >= 1 ? 'bg-gradient-to-r from-spot-blue to-spot-teal' : 'bg-gray-200'}`} />
@@ -98,7 +155,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
           <span className="text-sm text-gray-500">Step {step} of 3</span>
         </div>
         
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {step === 1 && (
             <div className="space-y-4 animate-fade-in">
@@ -148,7 +204,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
                     <span>500m</span>
                   </div>
                   
-                  {/* Radius visualization */}
                   <div className="relative mt-4 mx-auto w-40 h-40 flex items-center justify-center">
                     <div 
                       className="absolute rounded-full bg-primary/10 border border-primary/30"
@@ -220,7 +275,7 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
               </div>
               
               <div className="space-y-2">
-                {MOCK_FRIENDS.map(friend => (
+                {friends.map(friend => (
                   <div 
                     key={friend.id}
                     className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
@@ -258,11 +313,11 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
           )}
         </div>
         
-        {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-200 flex justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}
+            disabled={isLoading}
           >
             {step === 1 ? 'Cancel' : 'Back'}
           </Button>
@@ -272,6 +327,7 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
             rightIcon={step < 3 ? <ChevronRight size={16} /> : undefined}
             disabled={isNextDisabled()}
             onClick={handleNext}
+            isLoading={step === 3 && isLoading}
           >
             {step < 3 ? 'Next' : 'Create Spot'}
           </Button>
