@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import AccountCreation from "./pages/AccountCreation";
 import Login from "./pages/Login";
 import { useEffect, useState } from "react";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
@@ -16,18 +17,29 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Check if user has created an account
+  // Check authentication status
   useEffect(() => {
-    const checkAuth = () => {
-      const savedAccount = localStorage.getItem('spotItAccount');
-      if (savedAccount) {
-        setIsLoggedIn(true);
+    const checkAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setIsLoggedIn(!!data.session);
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     
-    // Simulate auth loading
-    setTimeout(checkAuth, 500);
+    checkAuth();
+    
+    // Subscribe to auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
   // Handle mobile viewport height issue (100vh problem on mobile browsers)

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn, User, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Button from '@/components/common/Button';
+import { signIn, signUp } from '@/lib/supabase';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,39 +19,64 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // In a real app with Supabase, we would use:
-      // if (isLogin) {
-      //   await supabase.auth.signInWithPassword({ email, password });
-      // } else {
-      //   await supabase.auth.signUp({ email, password, options: { data: { username } } });
-      // }
-
-      // For now, let's simulate auth
-      setTimeout(() => {
-        // Store basic user info in localStorage
-        localStorage.setItem('spotItAccount', JSON.stringify({
-          email,
-          username: username || email.split('@')[0],
-          id: 'user-1'
-        }));
+      if (isLogin) {
+        const { data, error } = await signIn(email, password);
+        
+        if (error) {
+          toast({
+            title: "Login failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
 
         toast({
-          title: isLogin ? "Welcome back!" : "Account created!",
-          description: isLogin 
-            ? "You've successfully logged in to Spot It" 
-            : "Your Spot It account has been created",
+          title: "Welcome back!",
+          description: "You've successfully logged in to Spot It",
         });
-
+        
+        // Redirect to main page
         navigate('/');
-        setIsLoading(false);
-      }, 1000);
+      } else {
+        // Sign up
+        const { data, error } = await signUp(email, password, username);
+        
+        if (error) {
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        toast({
+          title: "Account created!",
+          description: "Your Spot It account has been created successfully",
+        });
+        
+        // Redirect to main page if auto-confirmation is enabled in Supabase
+        if (data?.user) {
+          navigate('/');
+        } else {
+          toast({
+            title: "Email verification required",
+            description: "Please check your email to confirm your account",
+          });
+        }
+      }
     } catch (error) {
-      setIsLoading(false);
+      console.error("Authentication error:", error);
       toast({
         title: "Authentication error",
         description: "Please check your credentials and try again",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
