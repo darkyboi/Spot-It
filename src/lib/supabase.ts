@@ -12,21 +12,30 @@ export const signUp = async (email: string, password: string, username: string) 
     }
   });
   
-  if (authError) return { data: null, error: authError };
+  if (authError) {
+    console.error("Signup auth error:", authError);
+    return { data: null, error: authError };
+  }
+  
+  console.log("Auth signup response:", authData);
   
   // Create profile after successful registration
   if (authData.user) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        username,
-        full_name: username,
-      });
-    
-    if (profileError) {
-      console.error("Error creating profile:", profileError);
-      return { data: authData, error: { message: "User created but error setting up profile" } };
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          username,
+          full_name: username,
+        });
+      
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+        return { data: authData, error: { message: "User created but error setting up profile" } };
+      }
+    } catch (e) {
+      console.error("Exception during profile creation:", e);
     }
   }
   
@@ -34,10 +43,18 @@ export const signUp = async (email: string, password: string, username: string) 
 };
 
 export const signIn = async (email: string, password: string) => {
+  console.log("Attempting to sign in with:", email);
+  
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
+  
+  if (error) {
+    console.error("Sign in error:", error);
+  } else {
+    console.log("Sign in successful:", data);
+  }
   
   return { data, error };
 };

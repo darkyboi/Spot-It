@@ -10,6 +10,7 @@ import AccountCreation from "./pages/AccountCreation";
 import Login from "./pages/Login";
 import { useEffect, useState } from "react";
 import { supabase } from "./integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const queryClient = new QueryClient();
 
@@ -22,7 +23,18 @@ const App = () => {
     const checkAuth = async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        setIsLoggedIn(!!data.session);
+        console.log("Current session:", data.session);
+        const isAuthenticated = !!data.session;
+        setIsLoggedIn(isAuthenticated);
+        
+        if (isAuthenticated) {
+          toast({
+            title: "Authenticated",
+            description: `Logged in as ${data.session.user.email}`,
+          });
+        } else {
+          console.log("No active session found");
+        }
       } catch (error) {
         console.error("Error checking auth status:", error);
       } finally {
@@ -34,7 +46,20 @@ const App = () => {
     
     // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email);
       setIsLoggedIn(!!session);
+      
+      if (event === 'SIGNED_IN') {
+        toast({
+          title: "Signed in",
+          description: `Successfully signed in as ${session?.user?.email}`,
+        });
+      } else if (event === 'SIGNED_OUT') {
+        toast({
+          title: "Signed out",
+          description: "You have been signed out",
+        });
+      }
     });
     
     return () => {
