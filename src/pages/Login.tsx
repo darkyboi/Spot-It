@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 import { sendSignupEmail } from '@/lib/emailService';
 
 const Login = () => {
@@ -12,7 +13,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
-  const navigate = useRouter().push;
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {

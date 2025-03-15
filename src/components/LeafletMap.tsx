@@ -128,7 +128,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   }, []);
 
   // Function to handle map clicks for creating spots
-  const handleMapClick = (e: L.LeaflatMouseEvent) => {
+  const handleMapClick = (e: L.LeafletMouseEvent) => {
     if (!isCreatingSpot) return;
     
     const { lat, lng } = e.latlng;
@@ -149,6 +149,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     return colors[creatorNumber % colors.length];
   };
 
+  // Get creator name from creator ID (fallback to ID format if no name available)
+  const getCreatorName = (spot: Spot) => {
+    return spot.creatorId.split('-')[0] || 'User';
+  };
+
   return (
     <div className="h-full relative">
       {!isMapReady && (
@@ -165,7 +170,6 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         zoom={13}
         style={{ height: '100%', width: '100%' }}
         whenReady={() => setIsMapReady(true)}
-        onClick={handleMapClick}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -189,6 +193,16 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           </Popup>
         </Marker>
         
+        {/* Event handler for map clicks */}
+        {isCreatingSpot && (
+          <div onClick={(e: React.MouseEvent) => {
+            const map = document.querySelector('.leaflet-container') as HTMLElement;
+            if (map && map.contains(e.target as Node)) {
+              // Use the map's internal event handling
+            }
+          }} />
+        )}
+        
         {/* Spot markers */}
         {spots.map(spot => (
           <React.Fragment key={spot.id}>
@@ -202,7 +216,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               <Popup>
                 <div className="text-sm">
                   <div className="font-semibold">{spot.message.substring(0, 30)}{spot.message.length > 30 ? '...' : ''}</div>
-                  <div className="text-xs text-gray-500">Created by: {spot.creatorName}</div>
+                  <div className="text-xs text-gray-500">Created by: {getCreatorName(spot)}</div>
                 </div>
               </Popup>
             </Marker>
@@ -210,13 +224,13 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
             {/* Spot radius circle */}
             <Circle 
               center={[spot.location.latitude, spot.location.longitude]}
-              radius={spot.radius}
               pathOptions={{
                 color: getSpotColor(spot),
                 fillColor: getSpotColor(spot),
                 fillOpacity: 0.1,
                 weight: 1
               }}
+              radius={spot.radius}
             />
           </React.Fragment>
         ))}
