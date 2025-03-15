@@ -67,6 +67,43 @@ export const getCurrentUser = async () => {
   return supabase.auth.getUser();
 };
 
+// Check daily spot limit
+export const checkDailySpotLimit = async () => {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return { canCreate: false, error: userError || { message: "User not authenticated" }, count: 0 };
+  }
+
+  // Get user's profile with daily spots count
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('daily_spots_count, last_spot_date')
+    .eq('id', userData.user.id)
+    .single();
+
+  if (profileError) {
+    console.error("Error fetching profile:", profileError);
+    return { canCreate: false, error: profileError, count: 0 };
+  }
+
+  // Check if it's a new day
+  const today = new Date().toISOString().split('T')[0];
+  const lastSpotDate = profile.last_spot_date ? profile.last_spot_date : null;
+  
+  if (lastSpotDate !== today) {
+    // It's a new day, reset counter
+    return { canCreate: true, count: 0 };
+  }
+  
+  // Check if user has reached the daily limit (10 spots)
+  const dailyCount = profile.daily_spots_count || 0;
+  return { 
+    canCreate: dailyCount < 10, 
+    count: dailyCount,
+    error: dailyCount >= 10 ? { message: "You've reached the daily limit of 10 spots" } : null
+  };
+};
+
 // Spot related functions
 export const saveSpot = async (spotData: {
   message: string;
@@ -78,6 +115,12 @@ export const saveSpot = async (spotData: {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
     return { data: null, error: userError || { message: "User not authenticated" } };
+  }
+
+  // Check daily spot limit
+  const { canCreate, error: limitError } = await checkDailySpotLimit();
+  if (!canCreate) {
+    return { data: null, error: limitError };
   }
 
   // Calculate expiration date based on duration

@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import BottomMenu from '@/components/BottomMenu';
 import PastSpots from '@/components/PastSpots';
 import MySpots from '@/components/MySpots';
-import { getSpots } from '@/lib/supabase';
+import { getSpots, checkDailySpotLimit } from '@/lib/supabase';
 
 const Index = () => {
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -26,7 +26,28 @@ const Index = () => {
   
   useEffect(() => {
     loadSpots();
+    checkSpotLimit();
   }, []);
+  
+  const checkSpotLimit = async () => {
+    try {
+      const { count, canCreate } = await checkDailySpotLimit();
+      if (!canCreate) {
+        toast({
+          title: "Daily Limit Reached",
+          description: "You've already created 10 spots today. Try again tomorrow!",
+          variant: "destructive"
+        });
+      } else if (count >= 7) {
+        toast({
+          title: "Approaching Daily Limit",
+          description: `You have ${10 - count} spots remaining today.`,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to check spot limit:", err);
+    }
+  };
   
   const loadSpots = async () => {
     setIsLoading(true);
@@ -90,8 +111,10 @@ const Index = () => {
   };
   
   const handleCreateSpotClick = (location: { latitude: number; longitude: number }) => {
-    setCreateLocation(location);
-    setShowCreateModal(true);
+    checkSpotLimit().then(() => {
+      setCreateLocation(location);
+      setShowCreateModal(true);
+    });
   };
   
   const handleCreateSpot = async (spotData: {
@@ -142,6 +165,8 @@ const Index = () => {
             `
           })
         });
+        
+        console.log(`Email notification sent to recipient ${recipientId}`);
       } catch (error) {
         console.error('Error sending spot notification email:', error);
       }

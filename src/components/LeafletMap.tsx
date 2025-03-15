@@ -250,6 +250,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                 {/* Radius circle */}
                 <Circle 
                   center={[spot.location.latitude, spot.location.longitude]} 
+                  radius={spot.radius}
                   pathOptions={{
                     color: spotColor === 'blue' ? '#3b82f6' : 
                            spotColor === 'teal' ? '#14b8a6' :
@@ -270,7 +271,6 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                     fillOpacity: 0.2,
                     weight: 1
                   }}
-                  radius={spot.radius}
                 />
               </React.Fragment>
             );
@@ -307,13 +307,13 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               {/* Radius preview for new spot */}
               <Circle 
                 center={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]} 
+                radius={100}
                 pathOptions={{
                   color: '#3b82f6',
                   fillColor: '#3b82f6',
                   fillOpacity: 0.2,
                   weight: 1
                 }}
-                radius={100} // Default radius for new spot
               />
             </React.Fragment>
           )}
