@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -292,7 +291,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       
       <div className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation">
         <MapContainer
-          center={[KARACHI_COORDINATES.lat, KARACHI_COORDINATES.lng]}
+          // Change 'center' to 'defaultCenter'
+          center={[userLocation.latitude, userLocation.longitude]}
           style={{ height: '100%', width: '100%' }}
           whenReady={() => setIsMapLoaded(true)}
           scrollWheelZoom={true}
