@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -17,7 +18,7 @@ interface LeafletMapProps {
 }
 
 // Karachi coordinates as default
-const KARACHI_COORDINATES = { lat: 24.8607, lng: 67.0011 };
+const KARACHI_COORDINATES = [24.8607, 67.0011] as [number, number];
 
 // Fix Leaflet icon issue
 const markerIcon = new L.Icon({
@@ -60,6 +61,11 @@ function MapController({
   onMapClick, 
   userLocation, 
   setMapZoom
+}: {
+  setMapRef: (map: L.Map) => void;
+  onMapClick: (e: L.LeafletMouseEvent) => void;
+  userLocation: { latitude: number; longitude: number };
+  setMapZoom: (zoom: number) => void;
 }) {
   const map = useMap();
   
@@ -69,7 +75,7 @@ function MapController({
     return () => {
       map.off('zoom');
     };
-  }, [map, setMapRef, setMapZoom]);
+  }, [map, setMapRef]);
   
   const mapEvents = useMapEvents({
     click: onMapClick,
@@ -87,11 +93,17 @@ function MapController({
 }
 
 // Location search component
-const LocationSearch = ({ onSearch, onMyLocation }) => {
+const LocationSearch = ({ 
+  onSearch, 
+  onMyLocation 
+}: {
+  onSearch: (location: { latitude: number; longitude: number }) => void;
+  onMyLocation: () => void;
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
-  const handleSearch = async (e) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
     
@@ -178,8 +190,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   askForSpotType
 }) => {
   const [userLocation, setUserLocation] = useState({ 
-    latitude: KARACHI_COORDINATES.lat, 
-    longitude: KARACHI_COORDINATES.lng 
+    latitude: KARACHI_COORDINATES[0], 
+    longitude: KARACHI_COORDINATES[1] 
   });
   const [mapRef, setMapRef] = useState<L.Map | null>(null);
   const [mapZoom, setMapZoom] = useState(13);
@@ -253,7 +265,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     getUserLocation();
   };
   
-  const handleSearchLocation = (location) => {
+  const handleSearchLocation = (location: { latitude: number; longitude: number }) => {
     if (mapRef) {
       mapRef.setView([location.latitude, location.longitude], 15);
     }
@@ -291,8 +303,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       
       <div className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation">
         <MapContainer
-          // Change 'center' to 'defaultCenter'
-          center={[userLocation.latitude, userLocation.longitude]}
+          defaultZoom={13}
+          defaultCenter={[userLocation.latitude, userLocation.longitude]}
           style={{ height: '100%', width: '100%' }}
           whenReady={() => setIsMapLoaded(true)}
           scrollWheelZoom={true}
@@ -317,6 +329,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           {/* User location marker */}
           <Marker 
             position={[userLocation.latitude, userLocation.longitude]}
+            icon={userLocationIcon}
           >
             <Popup>
               <div className="text-center">
@@ -336,8 +349,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               <React.Fragment key={spot.id}>
                 <Marker 
                   position={[spot.location.latitude, spot.location.longitude]}
+                  icon={markerIcon}
                   eventHandlers={{
-                    click: () => onSpotClick(spot)
+                    click: () => onSpotClick(spot),
+                    mouseover: () => setHoveredSpot(spot.id),
+                    mouseout: () => setHoveredSpot(null)
                   }}
                 >
                   <Popup>
@@ -352,6 +368,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                 {/* Radius circle */}
                 <Circle 
                   center={[spot.location.latitude, spot.location.longitude]}
+                  radius={spot.radius}
                   pathOptions={{
                     color: spotColor === 'blue' ? '#3b82f6' : 
                            spotColor === 'teal' ? '#14b8a6' :
@@ -382,6 +399,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
             <React.Fragment>
               <Marker 
                 position={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]}
+                icon={tempLocationIcon}
               >
                 <Popup>
                   <div className="text-center p-2">
@@ -407,6 +425,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               {/* Radius preview for new spot */}
               <Circle 
                 center={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]}
+                radius={100}
                 pathOptions={{
                   color: '#3b82f6',
                   fillColor: '#3b82f6',

@@ -29,8 +29,7 @@ const SpotMap: React.FC<SpotMapProps> = ({
     if (pendingLocation) {
       // Pass the selected spot type to the parent component
       onCreateSpotClick({
-        latitude: pendingLocation.latitude,
-        longitude: pendingLocation.longitude,
+        ...pendingLocation,
         spotType
       });
       setPendingLocation(null);
