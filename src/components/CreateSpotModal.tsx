@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { X, Users, Clock, MapPin, ChevronRight, Infinity, MessageSquare, Info } from 'lucide-react';
+import { X, Users, Clock, MapPin, ChevronRight, Infinity } from 'lucide-react';
 import { Friend } from '@/lib/types';
 import Avatar from './common/Avatar';
 import Button from './common/Button';
@@ -9,7 +8,7 @@ import { saveSpot, getFriends } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
 interface CreateSpotModalProps {
-  location: { latitude: number; longitude: number; spotType?: string };
+  location: { latitude: number; longitude: number };
   onClose: () => void;
   onCreateSpot: (spotData: {
     message: string;
@@ -17,29 +16,27 @@ interface CreateSpotModalProps {
     duration: number;
     recipients: string[];
   }) => void;
-  spotType?: string;
 }
 
 const CreateSpotModal: React.FC<CreateSpotModalProps> = ({ 
   location, 
   onClose, 
-  onCreateSpot,
-  spotType = 'message'
+  onCreateSpot 
 }) => {
   const [step, setStep] = useState(1);
   const [message, setMessage] = useState('');
-  const [radius, setRadius] = useState(100);
-  const [duration, setDuration] = useState(24);
+  const [radius, setRadius] = useState(100); // Default 100m
+  const [duration, setDuration] = useState(24); // Default 24 hours
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    const initialize = async () => {
+    const loadFriends = async () => {
       try {
-        const { data, error: friendsError } = await getFriends();
-        if (friendsError) {
-          console.error("Error loading friends:", friendsError);
+        const { data, error } = await getFriends();
+        if (error) {
+          console.error("Error loading friends:", error);
           setFriends(MOCK_FRIENDS);
           return;
         }
@@ -50,12 +47,12 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
           setFriends(MOCK_FRIENDS);
         }
       } catch (err) {
-        console.error("Failed to initialize:", err);
+        console.error("Failed to load friends:", err);
         setFriends(MOCK_FRIENDS);
       }
     };
     
-    initialize();
+    loadFriends();
   }, []);
   
   const handleSubmit = async () => {
@@ -64,12 +61,31 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
     try {
       const spotData = {
         message,
+        location,
         radius,
         duration,
         recipients: selectedFriends,
       };
       
+      const { data, error } = await saveSpot(spotData);
+      
+      if (error) {
+        console.error("Error saving spot:", error);
+        toast({
+          title: "Failed to create Spot",
+          description: error.message || "There was an error creating your Spot.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
       onCreateSpot(spotData);
+      
+      toast({
+        title: "Spot Created",
+        description: "Your Spot has been successfully created and shared.",
+      });
     } catch (err) {
       console.error("Failed to create spot:", err);
       toast({
@@ -117,37 +133,11 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
     return `rgba(59, 130, 246, ${1 - percentage}) rgba(139, 92, 246, ${percentage})`;
   };
   
-  const getSpotTypeName = () => {
-    switch(spotType) {
-      case 'message':
-        return 'Message Spot';
-      case 'meetup':
-        return 'Meetup Spot';
-      case 'info':
-        return 'Info Spot';
-      default:
-        return 'New Spot';
-    }
-  };
-
-  const getSpotTypeIcon = () => {
-    switch(spotType) {
-      case 'message':
-        return <MessageSquare size={18} />;
-      case 'meetup':
-        return <Users size={18} />;
-      case 'info':
-        return <Info size={18} />;
-      default:
-        return <MapPin size={18} />;
-    }
-  };
-  
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="glass-morphism rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in">
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-spot-blue to-spot-purple">
-          <h2 className="text-lg font-semibold text-white">Create {getSpotTypeName()}</h2>
+          <h2 className="text-lg font-semibold text-white">Create a Spot</h2>
           <button 
             onClick={onClose}
             className="text-white/80 hover:text-white transition-colors"
@@ -168,9 +158,9 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {step === 1 && (
             <div className="space-y-4 animate-fade-in">
-              <div className="flex items-center space-x-2 text-gray-600 mb-2 bg-primary/5 p-2 rounded-lg">
-                {getSpotTypeIcon()}
-                <span>Creating a {getSpotTypeName()} at {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</span>
+              <div className="flex items-center space-x-2 text-gray-600 mb-2">
+                <MapPin size={18} />
+                <span>Location set at {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</span>
               </div>
               
               <div className="space-y-2">

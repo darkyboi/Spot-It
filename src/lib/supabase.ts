@@ -42,44 +42,6 @@ export const signUp = async (email: string, password: string, username: string) 
   return { data: authData, error: null };
 };
 
-export const checkDailySpotLimit = async () => {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    console.error("Error getting user:", userError);
-    return { count: 0, canCreate: true };
-  }
-
-  try {
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('daily_spots_count, last_spot_date')
-      .eq('id', userData.user.id)
-      .single();
-    
-    if (profileError) {
-      console.error("Error getting profile:", profileError);
-      return { count: 0, canCreate: true };
-    }
-    
-    // If it's a new day, reset the count
-    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const lastSpotDate = profileData.last_spot_date;
-    
-    if (lastSpotDate !== currentDate) {
-      return { count: 0, canCreate: true };
-    }
-    
-    const count = profileData.daily_spots_count || 0;
-    return { 
-      count, 
-      canCreate: true // Since we've removed the limit, always return true
-    };
-  } catch (err) {
-    console.error("Error checking daily limit:", err);
-    return { count: 0, canCreate: true };
-  }
-};
-
 export const signIn = async (email: string, password: string) => {
   console.log("Attempting to sign in with:", email);
   
@@ -108,11 +70,10 @@ export const getCurrentUser = async () => {
 // Spot related functions
 export const saveSpot = async (spotData: {
   message: string;
-  location: { latitude: number; longitude: number; spotType?: string };
+  location: { latitude: number; longitude: number };
   radius: number;
   duration: number;
   recipients: string[];
-  spotType?: string;
 }) => {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
@@ -135,8 +96,6 @@ export const saveSpot = async (spotData: {
     durationInterval = '10 years'; // Essentially forever
   }
 
-  const spotType = spotData.spotType || 'message';
-
   // Insert the spot
   const { data: spot, error: spotError } = await supabase
     .from('spots')
@@ -148,7 +107,6 @@ export const saveSpot = async (spotData: {
       radius: spotData.radius,
       duration: durationInterval,
       expires_at: expiresAt.toISOString(),
-      spot_type: spotType,
     })
     .select()
     .single();
@@ -196,8 +154,7 @@ export const getSpots = async () => {
       radius,
       duration,
       created_at,
-      expires_at,
-      spot_type
+      expires_at
     `)
     .eq('creator_id', userData.user.id)
     .gte('expires_at', new Date().toISOString());
@@ -222,8 +179,7 @@ export const getSpots = async () => {
         radius,
         duration,
         created_at,
-        expires_at,
-        spot_type
+        expires_at
       )
     `)
     .eq('recipient_id', userData.user.id)
@@ -250,7 +206,6 @@ export const getSpots = async () => {
         dbSpot.duration,
       createdAt: new Date(dbSpot.created_at),
       expiresAt: new Date(dbSpot.expires_at),
-      spotType: dbSpot.spot_type || 'message',
       recipients: [], // We don't have this data yet, need separate query if needed
       replies: [] // Need separate query for replies if implementing
     };
@@ -312,23 +267,4 @@ export const getFriends = async () => {
   });
 
   return { data: friends, error: null };
-};
-
-// Email notification function via Supabase Edge Function
-export const sendEmail = async (to: string, subject: string, html: string) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-email', {
-      body: { to, subject, html }
-    });
-    
-    if (error) {
-      console.error('Error sending email:', error);
-      return { success: false, error };
-    }
-    
-    return { success: true, data };
-  } catch (err) {
-    console.error('Exception sending email:', err);
-    return { success: false, error: err };
-  }
 };
