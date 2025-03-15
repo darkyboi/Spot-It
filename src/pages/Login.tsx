@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn, User, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Button from '@/components/common/Button';
 import { signIn, signUp } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -13,6 +13,49 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const sendWelcomeEmail = async (email: string, username: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: "Welcome to Spot It!",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(to right, #3b82f6, #8b5cf6); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0;">Welcome to Spot It!</h1>
+              </div>
+              <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                <p>Hello ${username},</p>
+                <p>Thank you for joining Spot It! We're excited to have you as part of our community.</p>
+                <p>With Spot It, you can:</p>
+                <ul>
+                  <li>Leave messages in the real world</li>
+                  <li>Connect with friends</li>
+                  <li>Discover spots around you</li>
+                </ul>
+                <p>Get started by creating your first spot!</p>
+                <div style="text-align: center; margin-top: 30px;">
+                  <a href="${window.location.origin}" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Start Exploring</a>
+                </div>
+              </div>
+            </div>
+          `
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to send welcome email');
+      }
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +95,9 @@ const Login = () => {
           setIsLoading(false);
           return;
         }
+
+        // Send welcome email
+        await sendWelcomeEmail(email, username);
 
         toast({
           title: "Account created!",

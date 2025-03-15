@@ -22,6 +22,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('map');
   const [blockedSpots, setBlockedSpots] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [spotType, setSpotType] = useState<string>('message');
   
   useEffect(() => {
     loadSpots();
@@ -108,6 +109,43 @@ const Index = () => {
       title: "Spot Created",
       description: "Your Spot has been placed successfully.",
     });
+    
+    spotData.recipients.forEach(async (recipientId) => {
+      try {
+        const recipientEmail = `user-${recipientId}@example.com`;
+        
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            to: recipientEmail,
+            subject: "New Spot Shared With You",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(to right, #3b82f6, #8b5cf6); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
+                  <h1 style="margin: 0;">New Spot Shared With You</h1>
+                </div>
+                <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                  <p>Hello there,</p>
+                  <p>A friend has shared a new Spot with you!</p>
+                  <p><strong>Message:</strong> ${spotData.message}</p>
+                  <p><strong>Radius:</strong> ${spotData.radius}m</p>
+                  <p><strong>Duration:</strong> ${spotData.duration === 999999 ? 'Forever' : `${spotData.duration} hours`}</p>
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${window.location.origin}" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Spot</a>
+                  </div>
+                </div>
+              </div>
+            `
+          })
+        });
+      } catch (error) {
+        console.error('Error sending spot notification email:', error);
+      }
+    });
   };
   
   const handleReplyToSpot = (spot: Spot, reply: string) => {
@@ -160,8 +198,8 @@ const Index = () => {
   const handleTabChange = (tab: string) => {
     if (tab === 'create') {
       const centerLocation = {
-        latitude: 34.0522,
-        longitude: -118.2437
+        latitude: 24.8607,
+        longitude: 67.0011
       };
       handleCreateSpotClick(centerLocation);
       return;
