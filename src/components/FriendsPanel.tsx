@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Users, Plus, Search, UserPlus, X, Mail, User, Check, Shield, AlertTriangle } from 'lucide-react';
 import { Friend } from '@/lib/types';
@@ -6,6 +5,7 @@ import Avatar from './common/Avatar';
 import Button from './common/Button';
 import { MOCK_FRIENDS } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { sendFriendRequestEmail } from '@/lib/emailService';
 
 interface FriendsPanelProps {
   isOpen: boolean;
@@ -18,48 +18,57 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
   const [inviteValue, setInviteValue] = useState('');
   const [selectedTab, setSelectedTab] = useState<'all' | 'requests'>('all');
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
-  
-  // Mock friend requests data
+  const [isLoading, setIsLoading] = useState(false);
+
   const [friendRequests] = useState([
     { id: 'req1', name: 'Jamie Smith', avatar: '', status: 'pending' as const },
     { id: 'req2', name: 'Taylor Wong', avatar: '', status: 'pending' as const }
   ]);
-  
+
   const filteredFriends = MOCK_FRIENDS.filter(friend => 
     friend.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
-  const handleAddFriend = () => {
+
+  const handleAddFriend = async () => {
     if (!inviteValue.trim()) return;
     
-    // In a real app, this would send a friend request
-    toast({
-      title: "Friend Request Sent",
-      description: `We've sent a request to ${inviteValue}`,
-    });
+    setIsLoading(true);
     
+    const isEmail = inviteValue.includes('@');
+    
+    if (isEmail && addMethod === 'email') {
+      await sendFriendRequestEmail({
+        fromEmail: 'current-user@example.com',
+        fromName: 'Current User',
+        toEmail: inviteValue
+      });
+    } else {
+      toast({
+        title: "Friend Request Sent",
+        description: `We've sent a request to ${inviteValue}`,
+      });
+    }
+    
+    setIsLoading(false);
     setInviteValue('');
     setAddMethod(null);
   };
-  
+
   const handleAcceptRequest = (id: string) => {
-    // In a real app, this would accept the friend request
     toast({
       title: "Friend Request Accepted",
       description: "You are now friends!",
     });
   };
-  
+
   const handleRejectRequest = (id: string) => {
-    // In a real app, this would reject the friend request
     toast({
       title: "Friend Request Declined",
       description: "The request has been removed",
     });
   };
-  
+
   const handleBlockFriend = (friendId: string) => {
-    // In a real app this would block the friend
     toast({
       title: "User Blocked",
       description: "You won't receive Spots from this user anymore",
@@ -67,17 +76,15 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
     });
     setSelectedFriend(null);
   };
-  
+
   const handleReportFriend = (friendId: string) => {
-    // In a real app this would report the friend
     toast({
       title: "Report Submitted",
       description: "Thank you for helping keep our community safe",
     });
     setSelectedFriend(null);
   };
-  
-  // Format last active time
+
   const formatLastActive = (date?: Date) => {
     if (!date) return 'Unknown';
     
@@ -94,7 +101,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
     const diffDays = Math.round(diffHours / 24);
     return `${diffDays}d ago`;
   };
-  
+
   return (
     <div 
       className={`fixed inset-y-0 right-0 w-full sm:w-80 bg-white shadow-lg z-30 transition-transform duration-300 transform ${
@@ -102,7 +109,6 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
       }`}
     >
       <div className="flex flex-col h-full">
-        {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Users size={20} className="text-primary" />
@@ -116,7 +122,6 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
         
-        {/* Tabs */}
         <div className="flex border-b border-gray-200">
           <button
             className={`flex-1 py-2 text-center font-medium text-sm ${
@@ -144,7 +149,6 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
         
-        {/* Search & Add */}
         <div className="px-4 py-3 border-b border-gray-200 space-y-3">
           <div className="relative">
             <Search size={16} className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
@@ -198,11 +202,12 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={!inviteValue.trim()}
+                  disabled={!inviteValue.trim() || isLoading}
                   onClick={handleAddFriend}
                   leftIcon={<UserPlus size={16} />}
+                  isLoading={isLoading}
                 >
-                  Send Invite
+                  {isLoading ? 'Sending...' : 'Send Invite'}
                 </Button>
               </div>
             </div>
@@ -228,10 +233,8 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
           )}
         </div>
         
-        {/* Friends List or Requests */}
         <div className="flex-1 overflow-y-auto">
           {selectedTab === 'all' ? (
-            // All Friends Tab
             filteredFriends.length === 0 ? (
               <div className="py-8 px-4 text-center text-gray-500">
                 {searchQuery ? "No friends match your search" : "You haven't added any friends yet"}
@@ -268,7 +271,6 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
                       </button>
                     </div>
                     
-                    {/* Friend Actions - Shown when selected */}
                     {selectedFriend === friend.id && (
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                         <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">Actions</h4>
@@ -308,7 +310,6 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({ isOpen, onClose }) => {
               </ul>
             )
           ) : (
-            // Requests Tab
             friendRequests.length === 0 ? (
               <div className="py-8 px-4 text-center text-gray-500">
                 You don't have any friend requests

@@ -133,6 +133,10 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
     return `rgba(59, 130, 246, ${1 - percentage}) rgba(139, 92, 246, ${percentage})`;
   };
   
+  const getLocationDescription = () => {
+    return `Latitude: ${location.latitude.toFixed(5)}, Longitude: ${location.longitude.toFixed(5)}`;
+  };
+  
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="glass-morphism rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in">
@@ -160,7 +164,7 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center space-x-2 text-gray-600 mb-2">
                 <MapPin size={18} />
-                <span>Location set at {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</span>
+                <span>{getLocationDescription()}</span>
               </div>
               
               <div className="space-y-2">
