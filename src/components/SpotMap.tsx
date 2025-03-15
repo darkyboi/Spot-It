@@ -17,7 +17,7 @@ const SpotMap: React.FC<SpotMapProps> = ({
 }) => {
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [selectedSpotType, setSelectedSpotType] = useState<string>('');
+  const [selectedSpotType, setSelectedSpotType] = useState<string>('message');
 
   const handleAskForSpotType = (location: { latitude: number; longitude: number }) => {
     setPendingLocation(location);
@@ -27,7 +27,11 @@ const SpotMap: React.FC<SpotMapProps> = ({
   const handleSpotTypeSelected = (spotType: string) => {
     setSelectedSpotType(spotType);
     if (pendingLocation) {
-      onCreateSpotClick(pendingLocation);
+      // Pass the selected spot type to the parent component
+      onCreateSpotClick({
+        ...pendingLocation,
+        spotType
+      });
       setPendingLocation(null);
     }
     setShowTypeSelector(false);

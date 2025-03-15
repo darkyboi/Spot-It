@@ -10,23 +10,21 @@ import { toast } from '@/hooks/use-toast';
 import BottomMenu from '@/components/BottomMenu';
 import PastSpots from '@/components/PastSpots';
 import MySpots from '@/components/MySpots';
-import { getSpots, checkDailySpotLimit } from '@/lib/supabase';
+import { getSpots, checkDailySpotLimit, saveSpot, sendEmail } from '@/lib/supabase';
 
 const Index = () => {
   const [spots, setSpots] = useState<Spot[]>([]);
   const [activeSpot, setActiveSpot] = useState<Spot | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createLocation, setCreateLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [createLocation, setCreateLocation] = useState<{ latitude: number; longitude: number; spotType?: string } | null>(null);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [activeTab, setActiveTab] = useState('map');
   const [blockedSpots, setBlockedSpots] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [spotType, setSpotType] = useState<string>('message');
   
   useEffect(() => {
     loadSpots();
-    checkSpotLimit();
   }, []);
   
   const checkSpotLimit = async () => {
@@ -110,11 +108,9 @@ const Index = () => {
     setActiveSpot(spot);
   };
   
-  const handleCreateSpotClick = (location: { latitude: number; longitude: number }) => {
-    checkSpotLimit().then(() => {
-      setCreateLocation(location);
-      setShowCreateModal(true);
-    });
+  const handleCreateSpotClick = (location: { latitude: number; longitude: number; spotType?: string }) => {
+    setCreateLocation(location);
+    setShowCreateModal(true);
   };
   
   const handleCreateSpot = async (spotData: {
@@ -126,51 +122,72 @@ const Index = () => {
     if (!createLocation) return;
     
     setShowCreateModal(false);
-    await loadSpots();
-    
-    toast({
-      title: "Spot Created",
-      description: "Your Spot has been placed successfully.",
-    });
-    
-    spotData.recipients.forEach(async (recipientId) => {
-      try {
-        const recipientEmail = `user-${recipientId}@example.com`;
+
+    const fullSpotData = {
+      ...spotData,
+      location: createLocation,
+      spotType: createLocation.spotType || 'message'
+    };
+
+    try {
+      const { data, error } = await saveSpot(fullSpotData);
+      
+      if (error) {
+        console.error("Error saving spot:", error);
+        toast({
+          title: "Failed to Create Spot",
+          description: error.message || "There was an error creating your Spot.",
+          variant: "destructive"
+        });
+      } else {
+        await loadSpots();
         
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            to: recipientEmail,
-            subject: "New Spot Shared With You",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(to right, #3b82f6, #8b5cf6); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
-                  <h1 style="margin: 0;">New Spot Shared With You</h1>
-                </div>
-                <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-                  <p>Hello there,</p>
-                  <p>A friend has shared a new Spot with you!</p>
-                  <p><strong>Message:</strong> ${spotData.message}</p>
-                  <p><strong>Radius:</strong> ${spotData.radius}m</p>
-                  <p><strong>Duration:</strong> ${spotData.duration === 999999 ? 'Forever' : `${spotData.duration} hours`}</p>
-                  <div style="text-align: center; margin-top: 30px;">
-                    <a href="${window.location.origin}" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Spot</a>
-                  </div>
-                </div>
-              </div>
-            `
-          })
+        toast({
+          title: "Spot Created",
+          description: "Your Spot has been placed successfully.",
         });
         
-        console.log(`Email notification sent to recipient ${recipientId}`);
-      } catch (error) {
-        console.error('Error sending spot notification email:', error);
+        spotData.recipients.forEach(async (recipientId) => {
+          try {
+            const recipientEmail = `user-${recipientId}@example.com`;
+            
+            await sendEmail(
+              recipientEmail,
+              "New Spot Shared With You", 
+              `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background: linear-gradient(to right, #3b82f6, #8b5cf6); padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0;">
+                    <h1 style="margin: 0;">New Spot Shared With You</h1>
+                  </div>
+                  <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p>Hello there,</p>
+                    <p>A friend has shared a new Spot with you!</p>
+                    <p><strong>Message:</strong> ${spotData.message}</p>
+                    <p><strong>Radius:</strong> ${spotData.radius}m</p>
+                    <p><strong>Duration:</strong> ${spotData.duration === 999999 ? 'Forever' : `${spotData.duration} hours`}</p>
+                    <p><strong>Type:</strong> ${createLocation.spotType || 'Message'}</p>
+                    <div style="text-align: center; margin-top: 30px;">
+                      <a href="${window.location.origin}" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Spot</a>
+                    </div>
+                  </div>
+                </div>
+              `
+            );
+            
+            console.log(`Email notification sent to recipient ${recipientId}`);
+          } catch (error) {
+            console.error('Error sending spot notification email:', error);
+          }
+        });
       }
-    });
+    } catch (err) {
+      console.error("Failed to create spot:", err);
+      toast({
+        title: "Failed to Create Spot",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleReplyToSpot = (spot: Spot, reply: string) => {
@@ -226,7 +243,17 @@ const Index = () => {
         latitude: 24.8607,
         longitude: 67.0011
       };
-      handleCreateSpotClick(centerLocation);
+      
+      if (activeTab === 'map') {
+        setCreateLocation(centerLocation);
+        setShowCreateModal(true);
+      } else {
+        setActiveTab('map');
+        setTimeout(() => {
+          setCreateLocation(centerLocation);
+          setShowCreateModal(true);
+        }, 300);
+      }
       return;
     }
     
@@ -321,6 +348,7 @@ const Index = () => {
           location={createLocation}
           onClose={() => setShowCreateModal(false)}
           onCreateSpot={handleCreateSpot}
+          spotType={createLocation.spotType || 'message'}
         />
       )}
       

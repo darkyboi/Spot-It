@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Navigation, Plus, Minus } from 'lucide-react';
+import { MapPin, Navigation, Plus, Minus, Search } from 'lucide-react';
 import { Spot } from '@/lib/types';
 import Button from '@/components/common/Button';
 import { cn } from '@/lib/utils';
@@ -66,14 +66,16 @@ function MapController({
   
   useEffect(() => {
     setMapRef(map);
-    map.on('click', onMapClick);
-    map.on('zoom', () => setMapZoom(map.getZoom()));
     
     return () => {
-      map.off('click', onMapClick);
       map.off('zoom');
     };
-  }, [map, onMapClick, setMapRef, setMapZoom]);
+  }, [map, setMapRef, setMapZoom]);
+  
+  const mapEvents = useMapEvents({
+    click: onMapClick,
+    zoom: () => setMapZoom(mapEvents.getZoom())
+  });
   
   // Center on user location when it changes
   useEffect(() => {
@@ -84,6 +86,91 @@ function MapController({
   
   return null;
 }
+
+// Location search component
+const LocationSearch = ({ onSearch, onMyLocation }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    
+    setIsSearching(true);
+    try {
+      // Use OpenStreetMap Nominatim for geocoding
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`);
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const location = {
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon)
+        };
+        onSearch(location);
+        toast({
+          title: "Location Found",
+          description: `Found: ${data[0].display_name}`,
+        });
+      } else {
+        toast({
+          title: "Location Not Found",
+          description: "Couldn't find that location. Try a different search term.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+      toast({
+        title: "Search Error",
+        description: "Error searching for location. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  return (
+    <div className="absolute top-4 left-4 z-20 glass-morphism rounded-lg p-2">
+      <form onSubmit={handleSearch} className="flex items-center space-x-2">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search location..."
+            className="px-3 py-2 pr-8 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full"
+          />
+          {isSearching ? (
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : (
+            <Search size={16} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          )}
+        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={isSearching}
+        >
+          Search
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onMyLocation}
+          title="My Location"
+        >
+          <Navigation size={16} />
+        </Button>
+      </form>
+    </div>
+  );
+};
 
 const LeafletMap: React.FC<LeafletMapProps> = ({ 
   spots, 
@@ -103,15 +190,23 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
   // Try to get user location
-  useEffect(() => {
+  const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const newLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
-          });
+          };
+          setUserLocation(newLocation);
+          if (mapRef) {
+            mapRef.setView([newLocation.latitude, newLocation.longitude], mapZoom);
+          }
           console.log('Got user location:', position.coords);
+          toast({
+            title: "Location Found",
+            description: "Using your current location",
+          });
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -124,6 +219,10 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     }
+  };
+  
+  useEffect(() => {
+    getUserLocation();
   }, []);
   
   const handleMapClick = (e: L.LeafletMouseEvent) => {
@@ -152,12 +251,12 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   };
   
   const centerOnUser = () => {
-    if (mapRef && userLocation) {
-      mapRef.setView([userLocation.latitude, userLocation.longitude], mapZoom);
-      toast({
-        title: "Map Centered",
-        description: "Map centered on your current location",
-      });
+    getUserLocation();
+  };
+  
+  const handleSearchLocation = (location) => {
+    if (mapRef) {
+      mapRef.setView([location.latitude, location.longitude], 15);
     }
   };
   
@@ -176,7 +275,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   // Get a color for a spot based on its creator
   const getSpotColor = (spot: Spot) => {
     const colors = ['blue', 'teal', 'indigo', 'purple', 'pink', 'orange', 'green', 'rose'];
-    const creatorNumber = parseInt(spot.creatorId.split('-')[1], 10) || 0;
+    const creatorNumber = parseInt(spot.creatorId.split('-')[1] || '0', 10) || 0;
     return colors[creatorNumber % colors.length];
   };
 
@@ -193,13 +292,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       
       <div className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation">
         <MapContainer
-          center={[userLocation.latitude, userLocation.longitude]}
-          zoom={mapZoom}
           style={{ height: '100%', width: '100%' }}
+          zoom={mapZoom}
           whenReady={() => setIsMapLoaded(true)}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
@@ -212,8 +309,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           
           {/* User location marker */}
           <Marker 
-            position={[userLocation.latitude, userLocation.longitude]} 
-            icon={userLocationIcon}
+            position={[userLocation.latitude, userLocation.longitude]}
           >
             <Popup>
               <div className="text-center">
@@ -232,8 +328,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
             return (
               <React.Fragment key={spot.id}>
                 <Marker 
-                  position={[spot.location.latitude, spot.location.longitude]} 
-                  icon={markerIcon}
+                  position={[spot.location.latitude, spot.location.longitude]}
                   eventHandlers={{
                     click: () => onSpotClick(spot)
                   }}
@@ -249,8 +344,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                 
                 {/* Radius circle */}
                 <Circle 
-                  center={[spot.location.latitude, spot.location.longitude]} 
-                  radius={spot.radius}
+                  center={[spot.location.latitude, spot.location.longitude]}
                   pathOptions={{
                     color: spotColor === 'blue' ? '#3b82f6' : 
                            spotColor === 'teal' ? '#14b8a6' :
@@ -280,8 +374,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           {tempMarkerPosition && (
             <React.Fragment>
               <Marker 
-                position={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]} 
-                icon={tempLocationIcon}
+                position={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]}
               >
                 <Popup>
                   <div className="text-center p-2">
@@ -306,8 +399,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
               
               {/* Radius preview for new spot */}
               <Circle 
-                center={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]} 
-                radius={100}
+                center={[tempMarkerPosition.latitude, tempMarkerPosition.longitude]}
                 pathOptions={{
                   color: '#3b82f6',
                   fillColor: '#3b82f6',
@@ -318,6 +410,12 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
             </React.Fragment>
           )}
         </MapContainer>
+        
+        {/* Location Search */}
+        <LocationSearch 
+          onSearch={handleSearchLocation}
+          onMyLocation={centerOnUser}
+        />
         
         {/* Map Controls */}
         <div className="absolute bottom-24 right-4 flex flex-col space-y-3">

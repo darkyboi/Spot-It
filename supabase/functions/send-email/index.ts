@@ -1,63 +1,81 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-interface EmailRequest {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-  from?: string;
-}
+const RESEND_API_KEY = Deno.env.get('RESEND')
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { to, subject, html, text, from = "Spot It <onboarding@resend.dev>" }: EmailRequest = await req.json();
-
-    if (!to || !subject || !html) {
-      throw new Error("Missing required fields: to, subject, or html");
+    if (!RESEND_API_KEY) {
+      throw new Error('Missing Resend API key')
     }
 
-    const emailResponse = await resend.emails.send({
-      from,
-      to: [to],
-      subject,
-      html,
-      text: text || "",
-    });
+    const { to, subject, html } = await req.json()
 
-    console.log("Email sent successfully:", emailResponse);
+    if (!to || !subject || !html) {
+      throw new Error('Missing required parameters: to, subject, or html')
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
+    console.log(`Attempting to send email to ${to} with subject: ${subject}`)
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
-    });
-  } catch (error: any) {
-    console.error("Error in send-email function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  }
-};
+      body: JSON.stringify({
+        from: 'Spot It <notifications@spotit-app.com>',
+        to: [to],
+        subject,
+        html,
+      }),
+    })
 
-serve(handler);
+    const data = await res.json()
+    
+    if (!res.ok) {
+      console.error('Error from Resend API:', data)
+      throw new Error(`Resend API error: ${JSON.stringify(data)}`)
+    }
+
+    console.log('Email sent successfully:', data)
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+        status: 200,
+      }
+    )
+  } catch (error) {
+    console.error('Error in send-email function:', error)
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+        status: 500,
+      }
+    )
+  }
+}
+
+serve(handler)

@@ -67,43 +67,6 @@ export const getCurrentUser = async () => {
   return supabase.auth.getUser();
 };
 
-// Check daily spot limit
-export const checkDailySpotLimit = async () => {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    return { canCreate: false, error: userError || { message: "User not authenticated" }, count: 0 };
-  }
-
-  // Get user's profile with daily spots count
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('daily_spots_count, last_spot_date')
-    .eq('id', userData.user.id)
-    .single();
-
-  if (profileError) {
-    console.error("Error fetching profile:", profileError);
-    return { canCreate: false, error: profileError, count: 0 };
-  }
-
-  // Check if it's a new day
-  const today = new Date().toISOString().split('T')[0];
-  const lastSpotDate = profile.last_spot_date ? profile.last_spot_date : null;
-  
-  if (lastSpotDate !== today) {
-    // It's a new day, reset counter
-    return { canCreate: true, count: 0 };
-  }
-  
-  // Check if user has reached the daily limit (10 spots)
-  const dailyCount = profile.daily_spots_count || 0;
-  return { 
-    canCreate: dailyCount < 10, 
-    count: dailyCount,
-    error: dailyCount >= 10 ? { message: "You've reached the daily limit of 10 spots" } : null
-  };
-};
-
 // Spot related functions
 export const saveSpot = async (spotData: {
   message: string;
@@ -111,16 +74,11 @@ export const saveSpot = async (spotData: {
   radius: number;
   duration: number;
   recipients: string[];
+  spotType?: string;
 }) => {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
     return { data: null, error: userError || { message: "User not authenticated" } };
-  }
-
-  // Check daily spot limit
-  const { canCreate, error: limitError } = await checkDailySpotLimit();
-  if (!canCreate) {
-    return { data: null, error: limitError };
   }
 
   // Calculate expiration date based on duration
@@ -139,6 +97,8 @@ export const saveSpot = async (spotData: {
     durationInterval = '10 years'; // Essentially forever
   }
 
+  const spotType = spotData.spotType || 'message';
+
   // Insert the spot
   const { data: spot, error: spotError } = await supabase
     .from('spots')
@@ -150,6 +110,7 @@ export const saveSpot = async (spotData: {
       radius: spotData.radius,
       duration: durationInterval,
       expires_at: expiresAt.toISOString(),
+      spot_type: spotType,
     })
     .select()
     .single();
@@ -197,7 +158,8 @@ export const getSpots = async () => {
       radius,
       duration,
       created_at,
-      expires_at
+      expires_at,
+      spot_type
     `)
     .eq('creator_id', userData.user.id)
     .gte('expires_at', new Date().toISOString());
@@ -222,7 +184,8 @@ export const getSpots = async () => {
         radius,
         duration,
         created_at,
-        expires_at
+        expires_at,
+        spot_type
       )
     `)
     .eq('recipient_id', userData.user.id)
@@ -249,6 +212,7 @@ export const getSpots = async () => {
         dbSpot.duration,
       createdAt: new Date(dbSpot.created_at),
       expiresAt: new Date(dbSpot.expires_at),
+      spotType: dbSpot.spot_type || 'message',
       recipients: [], // We don't have this data yet, need separate query if needed
       replies: [] // Need separate query for replies if implementing
     };
@@ -310,4 +274,23 @@ export const getFriends = async () => {
   });
 
   return { data: friends, error: null };
+};
+
+// Email notification function via Supabase Edge Function
+export const sendEmail = async (to: string, subject: string, html: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { to, subject, html }
+    });
+    
+    if (error) {
+      console.error('Error sending email:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception sending email:', err);
+    return { success: false, error: err };
+  }
 };
