@@ -42,6 +42,44 @@ export const signUp = async (email: string, password: string, username: string) 
   return { data: authData, error: null };
 };
 
+export const checkDailySpotLimit = async () => {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    console.error("Error getting user:", userError);
+    return { count: 0, canCreate: true };
+  }
+
+  try {
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('daily_spots_count, last_spot_date')
+      .eq('id', userData.user.id)
+      .single();
+    
+    if (profileError) {
+      console.error("Error getting profile:", profileError);
+      return { count: 0, canCreate: true };
+    }
+    
+    // If it's a new day, reset the count
+    const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const lastSpotDate = profileData.last_spot_date;
+    
+    if (lastSpotDate !== currentDate) {
+      return { count: 0, canCreate: true };
+    }
+    
+    const count = profileData.daily_spots_count || 0;
+    return { 
+      count, 
+      canCreate: true // Since we've removed the limit, always return true
+    };
+  } catch (err) {
+    console.error("Error checking daily limit:", err);
+    return { count: 0, canCreate: true };
+  }
+};
+
 export const signIn = async (email: string, password: string) => {
   console.log("Attempting to sign in with:", email);
   
@@ -70,7 +108,7 @@ export const getCurrentUser = async () => {
 // Spot related functions
 export const saveSpot = async (spotData: {
   message: string;
-  location: { latitude: number; longitude: number };
+  location: { latitude: number; longitude: number; spotType?: string };
   radius: number;
   duration: number;
   recipients: string[];

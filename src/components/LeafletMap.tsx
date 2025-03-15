@@ -160,7 +160,7 @@ const LocationSearch = ({ onSearch, onMyLocation }) => {
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onMyLocation}
           title="My Location"
@@ -292,9 +292,16 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       
       <div className="relative flex-1 bg-gradient-to-br from-blue-50 to-purple-50 map-container touch-manipulation">
         <MapContainer
+          center={[KARACHI_COORDINATES.lat, KARACHI_COORDINATES.lng]}
           style={{ height: '100%', width: '100%' }}
-          zoom={mapZoom}
           whenReady={() => setIsMapLoaded(true)}
+          scrollWheelZoom={true}
+          attributionControl={false}
+          zoomControl={false}
+          minZoom={3}
+          maxZoom={18}
+          doubleClickZoom={true}
+          dragging={true}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

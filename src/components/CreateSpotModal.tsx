@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, MapPin, ChevronRight, Infinity, MessageSquare, Info } from 'lucide-react';
 import { Friend } from '@/lib/types';
 import Avatar from './common/Avatar';
 import Button from './common/Button';
 import { MOCK_FRIENDS } from '@/lib/types';
-import { saveSpot, getFriends, checkDailySpotLimit } from '@/lib/supabase';
+import { saveSpot, getFriends } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
 interface CreateSpotModalProps {
@@ -32,7 +33,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [spotLimitInfo, setSpotLimitInfo] = useState({ count: 0, canCreate: true });
   
   useEffect(() => {
     const initialize = async () => {
@@ -107,7 +107,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   };
   
   const isNextDisabled = () => {
-    if (!spotLimitInfo.canCreate) return true;
     if (step === 1) return message.trim().length === 0;
     if (step === 3) return selectedFriends.length === 0;
     return false || isLoading;
@@ -116,27 +115,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
   const getRadiusColor = () => {
     const percentage = (radius - 10) / (500 - 10);
     return `rgba(59, 130, 246, ${1 - percentage}) rgba(139, 92, 246, ${percentage})`;
-  };
-  
-  const renderLimitNotice = () => {
-    if (!spotLimitInfo.canCreate) {
-      return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <p className="text-red-600 text-sm">
-            You've reached your daily limit of 10 spots. Try again tomorrow!
-          </p>
-        </div>
-      );
-    } else if (spotLimitInfo.count >= 7) {
-      return (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-          <p className="text-amber-600 text-sm">
-            You have {10 - spotLimitInfo.count} spots remaining today.
-          </p>
-        </div>
-      );
-    }
-    return null;
   };
   
   const getSpotTypeName = () => {
@@ -177,8 +155,6 @@ const CreateSpotModal: React.FC<CreateSpotModalProps> = ({
             <X size={20} />
           </button>
         </div>
-        
-        {renderLimitNotice()}
         
         <div className="px-5 pt-2 flex items-center justify-between">
           <div className="flex space-x-1">

@@ -7,7 +7,7 @@ import SpotTypeSelector from './SpotTypeSelector';
 interface SpotMapProps {
   spots: Spot[];
   onSpotClick: (spot: Spot) => void;
-  onCreateSpotClick: (location: { latitude: number; longitude: number }) => void;
+  onCreateSpotClick: (location: { latitude: number; longitude: number; spotType?: string }) => void;
 }
 
 const SpotMap: React.FC<SpotMapProps> = ({ 
@@ -29,7 +29,8 @@ const SpotMap: React.FC<SpotMapProps> = ({
     if (pendingLocation) {
       // Pass the selected spot type to the parent component
       onCreateSpotClick({
-        ...pendingLocation,
+        latitude: pendingLocation.latitude,
+        longitude: pendingLocation.longitude,
         spotType
       });
       setPendingLocation(null);
